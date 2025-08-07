@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Customer Development Hypotheses Map</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body { font-family: system-ui, sans-serif; margin:0; display:flex; height:100vh; color:#222; }
+  #graph { flex: 2 1 auto; position:relative; background:#fcfcfd; }
+  #sidebar { flex: 1 1 400px; border-left:1px solid #ddd; padding:16px; overflow:auto; background:#fff; }
+  h1 { font-size:22px; margin:8px 0 14px; }
+  h2 { font-size:14px; margin:16px 0 4px; text-transform:uppercase; letter-spacing:0.5px; }
+  #details h2 { font-size:17px; text-transform:none; letter-spacing:0; margin:12px 0 20px; padding-bottom:4px; border-bottom:1px solid #e3e5e8; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .category-bar { display:flex; gap:6px; margin:4px 0 24px; flex-wrap:wrap; }
+  .cat-btn { padding:6px 10px; font-size:12px; border:1px dotted #6b7280; background:transparent; border-radius:5px; cursor:pointer; line-height:1; font-weight:500; color:#2c2f33; transition:background .12s, border-color .12s, color .12s; }
+  .cat-btn:hover { background:rgba(107,114,128,0.08); }
+  .cat-btn:focus-visible { outline:2px solid #2c64d8; outline-offset:2px; }
+  .cat-btn.active { background:rgba(107,114,128,0.18); border-color:#4b5563; }
+  .list-item { padding:6px 8px; border:1px solid #d8dade; border-radius:4px; margin:4px 0; cursor:pointer; background:#fafbfc; display:flex; flex-direction:column; gap:2px; }
+  .list-item:hover { background:#eef2f7; }
+  .list-item-id { font-size:11px; font-weight:600; color:#555; letter-spacing:.25px; }
+  .list-item-name { font-size:13px; font-weight:500; }
+  .swatch { width:14px; height:14px; border-radius:3px; border:2px solid transparent; }
+  #details { font-size:13px; line-height:1.4; }
+  .connection { margin:8px 0; padding:0; background:#f6f7f9; border-left:3px solid #ccc; border-radius:4px; transition:background .15s, border-color .15s; }
+  .connection:hover { background:#eef2f7; border-color:#888; }
+  .connection details { padding:6px 8px; }
+  .connection summary { list-style:none; cursor:pointer; display:flex; flex-direction:column; gap:2px; }
+  .connection summary::-webkit-details-marker { display:none; }
+  .conn-code { font-size:11px; font-weight:500; color:#666; letter-spacing:.25px; }
+  .conn-just { font-size:12px; font-weight:600; color:#222; }
+  .connection .fullHypo { margin:4px 0 0; padding:6px 8px; background:#fff; border:1px solid #e0e3e7; border-radius:4px; font-size:12px; line-height:1.35; }
+  .empty { color:#777; font-style:italic; }
+  .search { display:flex; gap:6px; margin-bottom:8px; align-items:center; }
+  input[type="search"] { flex:1; padding:6px 8px; font-size:13px; border:1px solid #bbb; border-radius:4px; }
+  #clearBtn { padding:6px 10px; font-size:12px; border:1px solid #bbb; border-radius:4px; background:#fafbfc; cursor:pointer; }
+  #clearBtn:disabled { opacity:.4; cursor:default; }
+  svg { width:100%; height:100%; }
+  .selected { outline:3px solid #333; }
+  .hidden { opacity:.1; }
+  .link { stroke:#999; stroke-opacity:0.45; transition:stroke .12s, stroke-width .12s, stroke-opacity .12s; }
+  .link.highlight { stroke-opacity:1; stroke-width:2.5px; }
+  .link.temp-highlight { stroke:#222; stroke-opacity:0.9; stroke-width:3px; }
+  .node-label { pointer-events:none; font-size:11px; font-weight:500; }
+  .node.temp-highlight rect, .node.temp-highlight circle { stroke:#222 !important; stroke-width:3px !important; }
+</style>
+</head>
+<body>
+  <div id="graph"></div>
+  <aside id="sidebar">
+    <h1>Customer Development Hypotheses Map</h1>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search nodes..." />
+      <button id="clearBtn" disabled>Clear</button>
+    </div>
+    <div class="category-bar" id="categoryBar">
+      <span style="font-size:12px; font-weight:600; align-self:center; color:#444;">List all:</span>
+      <button class="cat-btn" data-cat="Customer">Customer Types</button>
+      <button class="cat-btn" data-cat="Motivation">Motivations</button>
+      <button class="cat-btn" data-cat="Job">Jobs To Be Done</button>
+    </div>
+    <div id="legend" class="legend" style="display:none"></div>
+    <div id="details"><p class="empty">Select a node to view connections or choose a category above.</p></div>
+  </aside>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script>
+(async function(){
+  const files = { motivations: 'motivations.md', jobs: 'jobs.md', customers: 'customers.md', connections: 'connections.md' };
+  const colorMap = { M1:['#F9C5C4','#F08078'], M2:['#F9D2B8','#F39A42'], M3:['#F9E3AD','#E8B800'], M4:['#ECF3AE','#A8CB2A'], M5:['#D2F2BB','#5CBF63'], M6:['#BFF1D7','#28B79D'], M7:['#BDEDF0','#2BA2C7'], M8:['#C7E1F9','#3B85E0'], M9:['#D4D4FA','#6266D9'], M10:['#E1CDF7','#8A57C9'], M11:['#F2C9EF','#C347C9'], M12:['#F9C3E0','#E65792'], M13:['#F9C9D1','#E46A83'], M14:['#F9D8C5','#E48A4F'], M15:['#F9E9B8','#D5A522'], M16:['#E6F5B5','#A5C93A'], M17:['#CFF3C9','#57B870'], M18:['#C3F1E7','#2BB1A5'], M19:['#C9E7F9','#3A8EDB'] };
+  const defaultPastel='#EFEFF2', defaultStrong='#666';
+  function parseList(md){ return md.split(/\n/).filter(l=>/^\s*-\s+M?J?\d+/.test(l)).map(l=>{ const id=l.match(/(M|J)\d+/)?.[0]; const name=l.replace(/^-\s+M?J?\d+\s*/,'').replace(/\([^)]*\)/,'').trim(); return {id,name}; }); }
+  function parseCustomers(md){ return md.split(/\n## /).slice(1).map(b=>{ const head=b.match(/^(.*?)\n/)[1]; const id=head.match(/(C\d+)/)[1]; const primary=(b.match(/Primary Motivations:[^\n]*/)||[''])[0].split(':')[1]?.split(',').map(s=>s.trim()).filter(Boolean)||[]; const addl=(b.match(/Additional Motivations:[^\n]*/)||[''])[0].split(':')[1]?.split(',').map(s=>s.trim()).filter(Boolean)||[]; const jobs=(b.match(/Key JTBD Focus:[^\n]*/)||[''])[0].split(':')[1]?.split(',').map(s=>s.trim()).filter(Boolean)||[]; return {id,name:head.replace(/C\d+:/,'').trim(), motivations:[...primary,...addl], jobs}; }); }
+  function parseConnections(md){ return md.split(/\n/).filter(l=>/^C\d+\s*->/.test(l)).map(l=>{ const m=l.match(/(C\d+)\s*->\s*(M\d+)\s*->\s*(J\d+)\s*:\s*(.*)/); return m?{customer:m[1],motivation:m[2],job:m[3],justification:m[4]}:null; }).filter(Boolean); }
+  async function fetchText(path){ const r=await fetch(path); if(!r.ok) throw new Error('Fetch failed '+path); return r.text(); }
+  let motMd, jobMd, custMd, connMd; try { [motMd, jobMd, custMd, connMd] = await Promise.all(Object.values(files).map(fetchText)); } catch(e){ document.getElementById('details').innerHTML='<p style="color:#c00">Failed to load markdown files. If using file:// start a local server.</p>'; return; }
+  const motivations=parseList(motMd).filter(d=>d.id?.startsWith('M')); const jobs=parseList(jobMd).filter(d=>d.id?.startsWith('J')); const customers=parseCustomers(custMd); const connections=parseConnections(connMd);
+  const nodes=[]; const nodeIndex=new Map(); function addNode(o){ if(!nodeIndex.has(o.id)){ nodeIndex.set(o.id,o); nodes.push(o);} }
+  customers.forEach(c=>addNode({id:c.id,type:'Customer',label:c.id,name:c.name})); motivations.forEach(m=>addNode({id:m.id,type:'Motivation',label:m.id,name:m.name})); jobs.forEach(j=>addNode({id:j.id,type:'Job',label:j.id,name:j.name}));
+  const links=[]; const justificationMap={}; connections.forEach(c=>{ justificationMap[`${c.customer}|${c.motivation}|${c.job}`]=c.justification; if(!links.find(l=>l.source===c.customer && l.target===c.motivation)) links.push({source:c.customer,target:c.motivation,type:'cust-mot'}); if(!links.find(l=>l.source===c.motivation && l.target===c.job)) links.push({source:c.motivation,target:c.job,type:'mot-job'}); });
+  function buildLegend(){ /* legend suppressed in new UI */ }
+  buildLegend();
+  const width=document.getElementById('graph').clientWidth; const height=document.getElementById('graph').clientHeight; const svg=d3.select('#graph').append('svg');
+  // Background rect to allow click-to-clear
+  svg.append('rect').attr('class','bg-canvas').attr('x',0).attr('y',0).attr('width','100%').attr('height','100%').attr('fill','transparent').on('click',()=>clearSelection());
+  const link=svg.append('g').attr('stroke-width',1.2).selectAll('line').data(links).enter().append('line').attr('class','link');
+  const node=svg.append('g').selectAll('g').data(nodes).enter().append('g').attr('class',d=>`node nodeType-${d.type}`).call(d3.drag().on('start',dragstarted).on('drag',dragged).on('end',dragended));
+  node.each(function(d){ if(d.type==='Customer'){ d3.select(this).append('circle').attr('r',22).attr('fill','#fff').attr('stroke','#333'); } else { const pastel=colorMap[d.id]?.[0]||defaultPastel; const solid=colorMap[d.id]?.[1]||defaultStrong; d3.select(this).append('rect').attr('x',-28).attr('y',-16).attr('width',56).attr('height',32).attr('fill',pastel).attr('stroke',solid).attr('stroke-width',2); } d3.select(this).append('text').attr('text-anchor','middle').attr('dy',4).attr('class','node-label').text(d.label); });
+  // Add hover tooltips with full names
+  node.append('title').text(d=> `${d.id}: ${d.name || ''}`);
+  node.on('click', (evt,d)=> { evt.stopPropagation(); selectNode(d.id); });
+  const simulation=d3.forceSimulation(nodes).force('link',d3.forceLink(links).id(d=>d.id).distance(l=>l.type==='cust-mot'?120:80).strength(0.9)).force('charge',d3.forceManyBody().strength(-300)).force('center',d3.forceCenter(width/2,height/2)).force('collision',d3.forceCollide().radius(40));
+  simulation.on('tick',()=>{ link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y); node.attr('transform',d=>`translate(${d.x},${d.y})`); });
+  function dragstarted(event,d){ if(!event.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; } function dragged(event,d){ d.fx=event.x; d.fy=event.y; } function dragended(event,d){ if(!event.active) simulation.alphaTarget(0); }
+  const detailsEl=document.getElementById('details'); const clearBtn=document.getElementById('clearBtn');
+  let currentCategory = null;
+  function hypothesisSentence(cId,mId,jId){
+    const c=nodes.find(n=>n.id===cId); const m=nodes.find(n=>n.id===mId); const j=nodes.find(n=>n.id===jId);
+    const cName = c? c.name : cId;
+    function baseLabel(full){ if(!full) return ''; let part=full.split('–')[0].trim(); part=part.replace(/\([^)]*\)/g,'').trim(); return part.replace(/\s{2,}/g,' '); }
+    let mot = baseLabel(m?m.name:mId);
+    let job = baseLabel(j?j.name:jId);
+    if(mot) mot = mot.charAt(0).toLowerCase() + mot.slice(1);
+    if(job) job = job.charAt(0).toLowerCase() + job.slice(1);
+    return `We believe that ${cName} are motivated to ${mot || mId} when doing ${job || jId}.`;
+  }
+  function clearSelection(){ node.classed('selected',false).classed('hidden',false); link.classed('highlight',false).classed('hidden',false); detailsEl.innerHTML='<p class="empty">Select a node to view connections or choose a category above.</p>'; clearBtn.disabled=true; const s=document.getElementById('search'); if(s) s.value=''; currentCategory=null; document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active')); }
+  function selectNode(id){
+    currentCategory=null; document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+    // Determine node type
+    const selNode = nodes.find(n=>n.id===id);
+    node.classed('selected',d=>d.id===id);
+    // Direct inbound/outbound
+    const inboundLinks = links.filter(l=>l.target.id===id);
+    const outboundLinks = links.filter(l=>l.source.id===id);
+    const inboundIds = inboundLinks.map(l=> l.source.id||l.source);
+    const outboundIds = outboundLinks.map(l=> l.target.id||l.target);
+    const related = new Set([id, ...inboundIds, ...outboundIds]);
+
+    // If selected node is a Job, pull one more level back: customers via motivations
+    if(selNode && selNode.type === 'Job'){
+      // motivations feeding this job are already in inboundIds
+      inboundIds.forEach(mid => {
+        // find customers with edges to this motivation
+        links.filter(l=> l.target.id===mid && nodes.find(n=>n.id===l.source.id).type==='Customer')
+             .forEach(l=> related.add(l.source.id));
+      });
+    }
+
+    // Apply visibility
+    node.classed('hidden',d=> !related.has(d.id));
+
+    // Highlight edges: all edges whose both ends are in related AND (a) touch selected id OR (b) are part of a path to selected job if job selected
+    link.classed('highlight', l=> {
+      if(l.source.id===id || l.target.id===id) return true;
+      if(selNode && selNode.type==='Job'){
+        // highlight customer->motivation edges where motivation connects to the job
+        const motivationIds = inboundIds; // motivations into job
+        if(motivationIds.includes(l.target.id) && nodes.find(n=>n.id===l.source.id).type==='Customer') return true;
+      }
+      return false;
+    });
+    link.classed('hidden', l=> !(related.has(l.source.id) && related.has(l.target.id)));
+
+    const obj=selNode;
+    let html='';
+    if(obj){ html+=`<h2>${obj.type} (${id}): ${obj.name||''}</h2>`; } else { html+=`<h2>${id}</h2>`; }
+
+    const triples=Object.entries(justificationMap).map(([k,v])=>{ const [c,m,j]=k.split('|'); return {c,m,j,just:v}; });
+    const filtered=triples.filter(t=>t.c===id||t.m===id||t.j===id || (selNode && selNode.type==='Job' && t.j===id));
+    if(filtered.length){
+      html+='<div class=section><h3>Hypotheses</h3>';
+      filtered.forEach(t=>{ const key=`${t.c} -> ${t.m} -> ${t.j}`; const full=hypothesisSentence(t.c,t.m,t.j); html+=`<div class=connection data-c="${t.c}" data-m="${t.m}" data-j="${t.j}"><details><summary><span class=\"conn-just\">${t.just} <span class=\"conn-code\">(${key})</span></span></summary><div class=fullHypo>${full}</div></details></div>`; });
+      html+='</div>';
+    }
+    detailsEl.innerHTML=html; attachConnectionHoverHandlers(); clearBtn.disabled=false;
+  }
+
+  function attachConnectionHoverHandlers(){
+    const cards = detailsEl.querySelectorAll('.connection');
+    cards.forEach(card=>{
+      const c=card.getAttribute('data-c'); const m=card.getAttribute('data-m'); const j=card.getAttribute('data-j');
+      card.addEventListener('mouseenter',()=> tempHighlightTriple(c,m,j,true));
+      card.addEventListener('mouseleave',()=> tempHighlightTriple(c,m,j,false));
+    });
+  }
+  function tempHighlightTriple(c,m,j,on){
+    // highlight nodes
+    [c,m,j].forEach(id=>{
+      node.filter(d=>d.id===id).classed('temp-highlight',on);
+    });
+    // highlight the two links
+    links.forEach(l=>{});
+    link.classed('temp-highlight',d=> on && ((d.source.id===c && d.target.id===m) || (d.source.id===m && d.target.id===j)) );
+  }
+  clearBtn.addEventListener('click', clearSelection);
+  document.getElementById('search').addEventListener('input',e=>{ const q=e.target.value.trim().toLowerCase(); if(!q){ clearSelection(); return; } const matches=nodes.filter(n=>n.id.toLowerCase().includes(q)||(n.name||'').toLowerCase().includes(q)).map(n=>n.id); node.classed('hidden',d=>!matches.includes(d.id)); link.classed('hidden',l=>!matches.includes(l.source.id)||!matches.includes(l.target.id)); });
+  function showCategoryList(cat){
+    currentCategory = cat;
+    node.classed('selected',false).classed('hidden',false);
+    link.classed('highlight',false).classed('hidden',false);
+    clearBtn.disabled=false;
+    document.querySelectorAll('.cat-btn').forEach(b=> b.classList.toggle('active', b.dataset.cat===cat));
+    const list = nodes.filter(n=> n.type===cat).sort((a,b)=> a.id.localeCompare(b.id));
+    let html = `<h2>${cat === 'Job' ? 'Jobs To Be Done' : (cat==='Customer' ? 'Customer Types' : 'Motivations')}</h2>`;
+    if(!list.length){ html += '<p class="empty">No entries.</p>'; detailsEl.innerHTML=html; return; }
+    html += '<div class="section">';
+    list.forEach(n=>{
+      let style='';
+      if(cat==='Motivation' && colorMap[n.id]){
+        const pastel=colorMap[n.id][0];
+        const strong=colorMap[n.id][1];
+        style=`background:${pastel}; border-color:${strong};`;
+      }
+      html += `<div class="list-item" data-id="${n.id}" style="${style}"><span class="list-item-id">${n.id}</span><span class="list-item-name">${n.name||''}</span></div>`;
+    });
+    html += '</div>';
+    detailsEl.innerHTML = html;
+    detailsEl.querySelectorAll('.list-item').forEach(li=>{ li.addEventListener('click', ()=> selectNode(li.getAttribute('data-id'))); });
+  }
+  // Category button handlers
+  document.getElementById('categoryBar').addEventListener('click', e=>{
+    const btn = e.target.closest('.cat-btn'); if(!btn) return;
+    const cat = btn.dataset.cat;
+    if(currentCategory === cat){ // toggle off
+      clearSelection(); return;
+    }
+    showCategoryList(cat);
+  });
+  clearSelection(); // initialize with message
+})();
+</script>
+</body>
+</html>
